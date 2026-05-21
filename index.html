@@ -1,13 +1,457 @@
-<!DOCTYPE html>
+
+   <!DOCTYPE html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="favicon.webp" alt="Football betting predictions, statistics and analytics graph">
-    <title>PicsousBet Admin</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PicsousBet — Admin</title>
+  <link rel="icon" type="image/png" href="favicon.webp" alt="Football betting predictions, statistics and analytics graph">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#07080f;color:#fff;font-family:'Segoe UI',system-ui,sans-serif}
+  input,select,textarea{background:#0b0b14;border:1px solid #1c1c2e;border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;font-family:inherit;width:100%;outline:none}
+  input::placeholder,textarea::placeholder{color:#555}
+  textarea{resize:vertical;min-height:80px}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:#e94560;border-radius:2px}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{width:28px;height:28px;border:3px solid #1c1c2e;border-top:3px solid #e94560;border-radius:50%;animation:spin .8s linear infinite;margin:40px auto;display:block}
+  .btn{border:none;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-red{background:#e94560;color:#fff}
+  .btn-green{background:#25d366;color:#fff}
+  .btn-gold{background:#f5a623;color:#fff}
+  .btn-blue{background:#4a9eff;color:#fff}
+  .btn-sm{padding:5px 10px;font-size:11px;border-radius:6px;border:none;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-outline{background:transparent;border:1px solid #e94560;color:#e94560;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+  @media(max-width:600px){.grid2,.grid3{grid-template-columns:1fr}}
+  label{font-size:11px;color:#8892a4;font-weight:600;margin-bottom:4px;display:block;letter-spacing:.5px}
+  .card{background:#0f1019;border:1px solid #1c1c2e;border-radius:12px;padding:20px;margin-bottom:16px}
+  .card-title{font-size:14px;font-weight:700;margin-bottom:14px;color:#f5a623}
+  .divider{height:1px;background:#1c1c2e;margin:18px 0}
+  .badge{border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;display:inline-block}
+  .alert{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:10px 12px;font-size:10px;color:#8892a4;font-weight:700;letter-spacing:1px;border-bottom:1px solid #1c1c2e;background:#0a0a14}
+  td{padding:11px 12px;font-size:12px;border-bottom:1px solid #1c1c2e55;vertical-align:middle}
+  .table-wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ============================================================
+// 🔑 REMPLACEZ CES VALEURS PAR LES VÔTRES
+// ============================================================
+const SUPABASE_URL    = "https://VOTRE_PROJET.supabase.co";
+const SUPABASE_KEY    = "VOTRE_SERVICE_ROLE_KEY";
+const ADMIN_PASSWORD  = "picsous2026";
+// ============================================================
+
+const SPORTS = ["football","basketball","tennis"];
+const SE = {football:"⚽",basketball:"🏀",tennis:"🎾"};
+
+async function db(method, table, body=null, filter=""){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?order=created_at.desc${filter}`,{
+    method, headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":method==="POST"?"return=representation":""},
+    body:body?JSON.stringify(body):null
+  });
+  const t = await r.text(); return t?JSON.parse(t):null;
+}
+const getAll = t => db("GET",t);
+const ins = (t,d) => db("POST",t,d);
+const upd = (t,id,d) => db("PATCH",t,d,`&id=eq.${id}`);
+const del = (t,id) => db("DELETE",t,null,`&id=eq.${id}`);
+
+// ---- LOGIN ----
+function Login({onLogin}){
+  const [pw,setPw]=useState(""); const [err,setErr]=useState("");
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:20}}>
+      <div className="card" style={{maxWidth:360,width:"100%",textAlign:"center",padding:40}}>
+        <div style={{fontSize:52,marginBottom:12}}>⚡</div>
+        <div style={{fontSize:26,fontWeight:900,color:"#e94560",marginBottom:4}}>PicsousBet</div>
+        <div style={{fontSize:13,color:"#8892a4",marginBottom:24}}>Panel d'administration</div>
+        {err&&<div className="alert" style={{background:"#e9456018",border:"1px solid #e9456044",color:"#e94560"}}>{err}</div>}
+        <input type="password" placeholder="Mot de passe" value={pw} onChange={e=>setPw(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&(pw===ADMIN_PASSWORD?onLogin():setErr("Mot de passe incorrect"))}
+          style={{marginBottom:12}}/>
+        <button className="btn btn-red" style={{width:"100%"}}
+          onClick={()=>pw===ADMIN_PASSWORD?onLogin():setErr("Mot de passe incorrect")}>
+          CONNEXION →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---- DASHBOARD ----
+function Dashboard({matches,articles,coupons}){
+  const won=coupons.filter(c=>c.status==="won").length;
+  const lost=coupons.filter(c=>c.status==="lost").length;
+  const stats=[
+    {v:matches.length,l:"Matchs publiés",c:"#4a9eff"},
+    {v:articles.filter(a=>a.status==="published").length,l:"Articles publiés",c:"#f5a623"},
+    {v:won,l:"Coupons gagnés",c:"#25d366"},
+    {v:lost,l:"Coupons perdus",c:"#e94560"},
+  ];
+  return (
+    <div>
+      <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>Tableau de bord</div>
+      <div style={{fontSize:13,color:"#8892a4",marginBottom:24}}>Vue d'ensemble de PicsousBet</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:20}}>
+        {stats.map((s,i)=>(
+          <div key={i} className="card" style={{textAlign:"center",padding:"16px 10px"}}>
+            <span style={{fontSize:28,fontWeight:900,color:s.c,display:"block"}}>{s.v}</span>
+            <span style={{fontSize:10,color:"#8892a4",letterSpacing:1}}>{s.l.toUpperCase()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-title">⚽ Derniers matchs</div>
+        {matches.length===0?<p style={{color:"#8892a4",fontSize:13}}>Aucun match publié.</p>:
+          matches.slice(0,4).map((m,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #1c1c2e"}}>
+              <span style={{fontSize:13}}>{SE[m.sport]} {m.home_team} vs {m.away_team}</span>
+              <span className="badge" style={{background:"#4a9eff22",color:"#4a9eff",border:"1px solid #4a9eff44"}}>{m.league}</span>
+            </div>
+          ))
+        }
+      </div>
+      <div className="card">
+        <div className="card-title">📰 Derniers articles</div>
+        {articles.length===0?<p style={{color:"#8892a4",fontSize:13}}>Aucun article.</p>:
+          articles.slice(0,4).map((a,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #1c1c2e"}}>
+              <span style={{fontSize:13}}>{a.title}</span>
+              <span className="badge" style={{background:a.status==="published"?"#25d36622":"#55555522",color:a.status==="published"?"#25d366":"#8892a4",border:"1px solid #44444444"}}>{a.status==="published"?"Publié":"Brouillon"}</span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
+// ---- MATCHS ----
+function MatchesPanel({matches,onRefresh}){
+  const E={sport:"football",league:"",home_team:"",away_team:"",home_logo:"🔴",away_logo:"🔵",match_date:"",match_time:"",home_odds:"",draw_odds:"",away_odds:"",prediction:"",predicted_score:"",confidence:"",reasoning:"",tip:"",stars:"4"};
+  const [f,setF]=useState(E); const [saving,setSaving]=useState(false); const [msg,setMsg]=useState(null);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const showMsg=(type,text)=>{setMsg({type,text});setTimeout(()=>setMsg(null),3500)};
+
+  async function add(){
+    if(!f.home_team||!f.away_team||!f.league||!f.match_date){showMsg("error","Remplissez : équipes, ligue et date.");return;}
+    setSaving(true);
+    try{
+      await ins("matches",{...f,home_odds:f.home_odds?parseFloat(f.home_odds):null,draw_odds:f.draw_odds?parseFloat(f.draw_odds):null,away_odds:f.away_odds?parseFloat(f.away_odds):null,confidence:f.confidence?parseInt(f.confidence):null,stars:parseInt(f.stars)});
+      showMsg("success","✅ Match publié sur l'app client !");setF(E);onRefresh();
+    }catch(e){showMsg("error","Erreur Supabase : vérifiez vos clés.");}
+    setSaving(false);
+  }
+  async function remove(id){if(!confirm("Supprimer ?"))return;await del("matches",id);onRefresh();}
+
+  return (
+    <div>
+      <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>Matchs & Pronostics</div>
+      <div style={{fontSize:13,color:"#8892a4",marginBottom:20}}>Ajoutez vos matchs — ils apparaissent instantanément sur l'app</div>
+      {msg&&<div className="alert" style={{background:msg.type==="success"?"#25d36618":"#e9456018",border:`1px solid ${msg.type==="success"?"#25d36644":"#e9456044"}`,color:msg.type==="success"?"#25d366":"#e94560"}}>{msg.text}</div>}
+
+      <div className="card">
+        <div className="card-title">➕ Nouveau match</div>
+        <div className="grid3">
+          <div><label>Sport *</label><select value={f.sport} onChange={e=>set("sport",e.target.value)}>{SPORTS.map(s=><option key={s} value={s}>{SE[s]} {s.charAt(0).toUpperCase()+s.slice(1)}</option>)}</select></div>
+          <div><label>Compétition *</label><input placeholder="Champions League" value={f.league} onChange={e=>set("league",e.target.value)}/></div>
+          <div><label>Date *</label><input type="date" value={f.match_date} onChange={e=>set("match_date",e.target.value)}/></div>
+        </div>
+        <div className="grid3">
+          <div><label>Équipe domicile *</label><input placeholder="Real Madrid" value={f.home_team} onChange={e=>set("home_team",e.target.value)}/></div>
+          <div><label>Heure</label><input placeholder="21:00" value={f.match_time} onChange={e=>set("match_time",e.target.value)}/></div>
+          <div><label>Équipe extérieur *</label><input placeholder="Barcelona" value={f.away_team} onChange={e=>set("away_team",e.target.value)}/></div>
+        </div>
+        <div className="grid3">
+          <div><label>Cote domicile</label><input type="number" step="0.01" placeholder="2.10" value={f.home_odds} onChange={e=>set("home_odds",e.target.value)}/></div>
+          <div><label>Cote nul</label><input type="number" step="0.01" placeholder="3.40" value={f.draw_odds} onChange={e=>set("draw_odds",e.target.value)}/></div>
+          <div><label>Cote extérieur</label><input type="number" step="0.01" placeholder="3.20" value={f.away_odds} onChange={e=>set("away_odds",e.target.value)}/></div>
+        </div>
+        <div className="divider"/>
+        <div style={{fontSize:14,fontWeight:700,marginBottom:12,color:"#25d366"}}>🔮 Votre Pronostic</div>
+        <div className="grid3">
+          <div><label>Prédiction</label><input placeholder="Victoire Domicile" value={f.prediction} onChange={e=>set("prediction",e.target.value)}/></div>
+          <div><label>Score prédit</label><input placeholder="2-1" value={f.predicted_score} onChange={e=>set("predicted_score",e.target.value)}/></div>
+          <div><label>Confiance (%)</label><input type="number" placeholder="78" value={f.confidence} onChange={e=>set("confidence",e.target.value)}/></div>
+        </div>
+        <div style={{marginBottom:12}}><label>Analyse</label><textarea placeholder="Expliquez votre analyse..." value={f.reasoning} onChange={e=>set("reasoning",e.target.value)}/></div>
+        <div className="grid2">
+          <div><label>Conseil de pari</label><input placeholder="Miser sur le 1X double chance" value={f.tip} onChange={e=>set("tip",e.target.value)}/></div>
+          <div><label>Note (étoiles)</label><select value={f.stars} onChange={e=>set("stars",e.target.value)}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{"★".repeat(n)} ({n}/5)</option>)}</select></div>
+        </div>
+        <button className="btn btn-green" style={{marginTop:8,opacity:saving?.6:1}} onClick={add} disabled={saving}>{saving?"Publication...":"✅ PUBLIER CE MATCH"}</button>
+      </div>
+
+      <div className="card">
+        <div className="card-title">📋 Matchs publiés ({matches.length})</div>
+        {matches.length===0?<p style={{color:"#8892a4",fontSize:13}}>Aucun match.</p>:
+          <div className="table-wrap"><table>
+            <thead><tr><th>SPORT</th><th>MATCH</th><th>LIGUE</th><th>DATE</th><th>PRONOSTIC</th><th>SUPPR.</th></tr></thead>
+            <tbody>{matches.map(m=>(
+              <tr key={m.id}>
+                <td>{SE[m.sport]}</td>
+                <td><strong>{m.home_team}</strong> vs <strong>{m.away_team}</strong></td>
+                <td><span className="badge" style={{background:"#4a9eff22",color:"#4a9eff",border:"1px solid #4a9eff44"}}>{m.league}</span></td>
+                <td>{m.match_date}</td>
+                <td>{m.prediction?<span className="badge" style={{background:"#25d36622",color:"#25d366",border:"1px solid #25d36644"}}>{m.prediction}</span>:"—"}</td>
+                <td><button className="btn-sm btn-red" onClick={()=>remove(m.id)}>🗑️</button></td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ---- COUPONS ----
+function CouponsPanel({coupons,onRefresh}){
+  const E={sport:"football",home_team:"",away_team:"",league:"",match_date:"",prediction:"",odds:"",status:"pending",note:""};
+  const [f,setF]=useState(E);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState(null);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const showMsg=(type,text)=>{setMsg({type,text});setTimeout(()=>setMsg(null),3500)};
+  const SC={won:"#25d366",lost:"#e94560",pending:"#f5a623"};
+  const SL={won:"✅ Gagné",lost:"❌ Perdu",pending:"⏳ En attente"};
+
+  async function add(){
+    if(!f.home_team||!f.away_team||!f.prediction){showMsg("error","Remplissez : équipes et pronostic.");return;}
+    setSaving(true);
+    try{await ins("coupons",{...f,odds:f.odds?parseFloat(f.odds):null});showMsg("success","✅ Coupon publié !");setF(E);onRefresh();}
+    catch(e){showMsg("error","Erreur Supabase.");}
+    setSaving(false);
+  }
+  async function changeStatus(id,status){await upd("coupons",id,{status});onRefresh();}
+  async function remove(id){if(!confirm("Supprimer ?"))return;await del("coupons",id);onRefresh();}
+
+  return (
+    <div>
+      <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>Coupons & Résultats</div>
+      <div style={{fontSize:13,color:"#8892a4",marginBottom:20}}>Publiez un coupon et signalez son résultat en 1 clic</div>
+      {msg&&<div className="alert" style={{background:msg.type==="success"?"#25d36618":"#e9456018",border:`1px solid ${msg.type==="success"?"#25d36644":"#e9456044"}`,color:msg.type==="success"?"#25d366":"#e94560"}}>{msg.text}</div>}
+
+      <div className="card">
+        <div className="card-title">➕ Nouveau coupon</div>
+        <div className="grid3">
+          <div><label>Sport</label><select value={f.sport} onChange={e=>set("sport",e.target.value)}>{SPORTS.map(s=><option key={s} value={s}>{SE[s]} {s.charAt(0).toUpperCase()+s.slice(1)}</option>)}</select></div>
+          <div><label>Équipe 1 *</label><input placeholder="Domicile" value={f.home_team} onChange={e=>set("home_team",e.target.value)}/></div>
+          <div><label>Équipe 2 *</label><input placeholder="Extérieur" value={f.away_team} onChange={e=>set("away_team",e.target.value)}/></div>
+        </div>
+        <div className="grid3">
+          <div><label>Ligue</label><input placeholder="Champions League" value={f.league} onChange={e=>set("league",e.target.value)}/></div>
+          <div><label>Date</label><input type="date" value={f.match_date} onChange={e=>set("match_date",e.target.value)}/></div>
+          <div><label>Cote totale</label><input type="number" step="0.01" placeholder="3.25" value={f.odds} onChange={e=>set("odds",e.target.value)}/></div>
+        </div>
+        <div className="grid2">
+          <div><label>Pronostic *</label><input placeholder="1X + Over 1.5" value={f.prediction} onChange={e=>set("prediction",e.target.value)}/></div>
+          <div><label>Statut initial</label>
+            <select value={f.status} onChange={e=>set("status",e.target.value)}>
+              <option value="pending">⏳ En attente</option>
+              <option value="won">✅ Gagné</option>
+              <option value="lost">❌ Perdu</option>
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}><label>Note (optionnel)</label><input placeholder="Commentaire..." value={f.note} onChange={e=>set("note",e.target.value)}/></div>
+        <button className="btn btn-gold" style={{opacity:saving?.6:1}} onClick={add} disabled={saving}>{saving?"Enregistrement...":"📋 PUBLIER CE COUPON"}</button>
+      </div>
+
+      <div className="card">
+        <div className="card-title">🎯 Tous les coupons ({coupons.length})</div>
+        {coupons.length===0?<p style={{color:"#8892a4",fontSize:13}}>Aucun coupon.</p>:
+          <div className="table-wrap"><table>
+            <thead><tr><th>MATCH</th><th>PRONOSTIC</th><th>COTE</th><th>STATUT</th><th>CHANGER</th><th>SUP</th></tr></thead>
+            <tbody>{coupons.map(c=>(
+              <tr key={c.id}>
+                <td>{SE[c.sport]} {c.home_team} vs {c.away_team}</td>
+                <td>{c.prediction}</td>
+                <td><strong style={{color:"#f5a623"}}>{c.odds??"—"}</strong></td>
+                <td><span className="badge" style={{background:SC[c.status]+"22",color:SC[c.status],border:`1px solid ${SC[c.status]}44`}}>{SL[c.status]}</span></td>
+                <td>
+                  <div style={{display:"flex",gap:4}}>
+                    <button className="btn-sm" style={{background:"#25d366",color:"#fff"}} onClick={()=>changeStatus(c.id,"won")}>✅</button>
+                    <button className="btn-sm" style={{background:"#e94560",color:"#fff"}} onClick={()=>changeStatus(c.id,"lost")}>❌</button>
+                    <button className="btn-sm" style={{background:"#f5a623",color:"#fff"}} onClick={()=>changeStatus(c.id,"pending")}>⏳</button>
+                  </div>
+                </td>
+                <td><button className="btn-sm" style={{background:"#e94560",color:"#fff"}} onClick={()=>remove(c.id)}>🗑️</button></td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ---- ARTICLES ----
+function ArticlesPanel({articles,onRefresh}){
+  const E={title:"",sport:"football",intro:"",body:"",conclusion:"",tags:"",read_time:"3",status:"published"};
+  const [f,setF]=useState(E);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState(null);const [editId,setEditId]=useState(null);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const showMsg=(type,text)=>{setMsg({type,text});setTimeout(()=>setMsg(null),3500)};
+
+  async function save(){
+    if(!f.title||!f.intro){showMsg("error","Titre et introduction obligatoires.");return;}
+    setSaving(true);
+    try{
+      const payload={...f,tags:f.tags?f.tags.split(",").map(t=>t.trim()).filter(Boolean):[],read_time:parseInt(f.read_time)||3};
+      if(editId){await upd("articles",editId,payload);showMsg("success","✅ Article mis à jour !");setEditId(null);}
+      else{await ins("articles",payload);showMsg("success","✅ Article publié sur l'app !");}
+      setF(E);onRefresh();
+    }catch(e){showMsg("error","Erreur Supabase.");}
+    setSaving(false);
+  }
+  function startEdit(a){
+    setEditId(a.id);
+    setF({title:a.title,sport:a.sport,intro:a.intro||"",body:a.body||"",conclusion:a.conclusion||"",tags:(a.tags||[]).join(", "),read_time:String(a.read_time||3),status:a.status});
+    window.scrollTo(0,0);
+  }
+  async function toggleStatus(a){await upd("articles",a.id,{status:a.status==="published"?"draft":"published"});onRefresh();}
+  async function remove(id){if(!confirm("Supprimer cet article ?"))return;await del("articles",id);onRefresh();}
+
+  return (
+    <div>
+      <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>Articles</div>
+      <div style={{fontSize:13,color:"#8892a4",marginBottom:20}}>Rédigez et publiez vos articles — diffusion instantanée sur l'app</div>
+      {msg&&<div className="alert" style={{background:msg.type==="success"?"#25d36618":"#e9456018",border:`1px solid ${msg.type==="success"?"#25d36644":"#e9456044"}`,color:msg.type==="success"?"#25d366":"#e94560"}}>{msg.text}</div>}
+
+      <div className="card">
+        <div className="card-title">{editId?"✏️ Modifier l'article":"✍️ Nouvel article"}</div>
+        <div className="grid2">
+          <div><label>Titre *</label><input placeholder="Ex: Analyse PSG - Real Madrid" value={f.title} onChange={e=>set("title",e.target.value)}/></div>
+          <div><label>Sport</label><select value={f.sport} onChange={e=>set("sport",e.target.value)}>{SPORTS.map(s=><option key={s} value={s}>{SE[s]} {s.charAt(0).toUpperCase()+s.slice(1)}</option>)}</select></div>
+        </div>
+        <div style={{marginBottom:12}}><label>Introduction * (paragraphe d'accroche)</label><textarea style={{minHeight:80}} placeholder="Captez l'attention dès les premières lignes..." value={f.intro} onChange={e=>set("intro",e.target.value)}/></div>
+        <div style={{marginBottom:12}}><label>Corps de l'article</label><textarea style={{minHeight:200}} placeholder="Développez votre analyse ici..." value={f.body} onChange={e=>set("body",e.target.value)}/></div>
+        <div style={{marginBottom:12}}><label>Conclusion</label><textarea style={{minHeight:80}} placeholder="Terminez avec un conseil de pari..." value={f.conclusion} onChange={e=>set("conclusion",e.target.value)}/></div>
+        <div className="grid3">
+          <div><label>Tags (séparés par virgules)</label><input placeholder="analyse, ligue1, psg" value={f.tags} onChange={e=>set("tags",e.target.value)}/></div>
+          <div><label>Temps de lecture (min)</label><input type="number" min="1" max="30" value={f.read_time} onChange={e=>set("read_time",e.target.value)}/></div>
+          <div><label>Statut</label>
+            <select value={f.status} onChange={e=>set("status",e.target.value)}>
+              <option value="published">🟢 Publié immédiatement</option>
+              <option value="draft">⚪ Brouillon (non visible)</option>
+            </select>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:8}}>
+          <button className="btn btn-green" style={{opacity:saving?.6:1}} onClick={save} disabled={saving}>{saving?"Enregistrement...":editId?"💾 METTRE À JOUR":"📢 PUBLIER L'ARTICLE"}</button>
+          {editId&&<button className="btn-outline" onClick={()=>{setEditId(null);setF(E);}}>✕ Annuler</button>}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">📚 Articles ({articles.length})</div>
+        {articles.length===0?<p style={{color:"#8892a4",fontSize:13}}>Aucun article rédigé.</p>:
+          <div className="table-wrap"><table>
+            <thead><tr><th>TITRE</th><th>SPORT</th><th>STATUT</th><th>DATE</th><th>ACTIONS</th></tr></thead>
+            <tbody>{articles.map(a=>(
+              <tr key={a.id}>
+                <td style={{maxWidth:200}}>{a.title}</td>
+                <td><span className="badge" style={{background:"#f5a62322",color:"#f5a623",border:"1px solid #f5a62344"}}>{SE[a.sport]} {a.sport}</span></td>
+                <td><span className="badge" style={{background:a.status==="published"?"#25d36622":"#55555522",color:a.status==="published"?"#25d366":"#8892a4",border:"1px solid #44444444"}}>{a.status==="published"?"🟢 Publié":"⚪ Brouillon"}</span></td>
+                <td>{new Date(a.created_at).toLocaleDateString("fr-FR")}</td>
+                <td>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    <button className="btn-sm" style={{background:"#4a9eff",color:"#fff"}} onClick={()=>startEdit(a)}>✏️</button>
+                    <button className="btn-sm" style={{background:a.status==="published"?"#555":"#25d366",color:"#fff"}} onClick={()=>toggleStatus(a)}>{a.status==="published"?"⚪":"🟢"}</button>
+                    <button className="btn-sm" style={{background:"#e94560",color:"#fff"}} onClick={()=>remove(a.id)}>🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ---- APP PRINCIPALE ----
+function App(){
+  const [auth,setAuth]=useState(false);
+  const [page,setPage]=useState("dashboard");
+  const [data,setData]=useState({matches:[],coupons:[],articles:[]});
+  const [loading,setLoading]=useState(true);
+  const [dbErr,setDbErr]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
+
+  async function loadAll(){
+    try{
+      const [m,c,a]=await Promise.all([getAll("matches"),getAll("coupons"),getAll("articles")]);
+      setData({matches:m||[],coupons:c||[],articles:a||[]});setDbErr(false);
+    }catch{setDbErr(true);}
+    setLoading(false);
+  }
+  useEffect(()=>{if(auth)loadAll();},[auth]);
+
+  const nav=[
+    {id:"dashboard",icon:"📊",label:"Tableau de bord"},
+    {id:"matches",icon:"⚽",label:"Matchs & Pronostics"},
+    {id:"coupons",icon:"🎯",label:"Coupons / Résultats"},
+    {id:"articles",icon:"📰",label:"Articles"},
+  ];
+
+  if(!auth) return <Login onLogin={()=>setAuth(true)}/>;
+
+  return (
+    <div style={{display:"flex",minHeight:"100vh"}}>
+      {/* SIDEBAR desktop */}
+      <div style={{width:220,background:"#0a0a14",borderRight:"1px solid #1c1c2e",padding:"24px 0",position:"sticky",top:0,height:"100vh",overflowY:"auto",flexShrink:0,display:window.innerWidth<768?"none":"block"}}>
+        <div style={{padding:"0 20px 24px",borderBottom:"1px solid #1c1c2e",marginBottom:8}}>
+          <div style={{fontSize:20,fontWeight:900,color:"#e94560"}}>⚡ PicsousBet</div>
+          <div style={{fontSize:10,color:"#8892a4",letterSpacing:2}}>ADMIN PANEL</div>
+        </div>
+        {nav.map(n=>(
+          <div key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 20px",cursor:"pointer",background:page===n.id?"rgba(233,69,96,0.1)":"transparent",borderLeft:page===n.id?"3px solid #e94560":"3px solid transparent",color:page===n.id?"#e94560":"#8892a4",fontSize:13,fontWeight:600}}>
+            <span style={{fontSize:16}}>{n.icon}</span><span>{n.label}</span>
+          </div>
+        ))}
+        <div style={{padding:"20px",marginTop:20,borderTop:"1px solid #1c1c2e"}}>
+          <div style={{fontSize:11,color:"#8892a4",marginBottom:8}}>Admin connecté</div>
+          <button className="btn-outline" onClick={()=>setAuth(false)}>Déconnexion</button>
+        </div>
+      </div>
+
+      {/* MOBILE NAV */}
+      <div style={{display:window.innerWidth>=768?"none":"flex",position:"fixed",bottom:0,left:0,right:0,background:"#090910",borderTop:"1px solid #1c1c2e",zIndex:200}}>
+        {nav.map(n=>(
+          <div key={n.id} onClick={()=>setPage(n.id)} style={{flex:1,padding:"9px 4px 7px",textAlign:"center",cursor:"pointer",borderTop:page===n.id?"2px solid #e94560":"2px solid transparent"}}>
+            <div style={{fontSize:18,marginBottom:2}}>{n.icon}</div>
+            <div style={{fontSize:8,color:page===n.id?"#e94560":"#444",letterSpacing:1,fontFamily:"monospace"}}>{n.label.split(" ")[0].toUpperCase()}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* MAIN */}
+      <div style={{flex:1,padding:24,overflowY:"auto",paddingBottom:80}}>
+        {loading?<div className="spinner"/>:
+         dbErr?<div className="alert" style={{background:"#e9456018",border:"1px solid #e9456044",color:"#e94560"}}>⚠️ Impossible de se connecter à Supabase. Vérifiez SUPABASE_URL et SUPABASE_KEY en haut du fichier HTML.</div>:
+         page==="dashboard"?<Dashboard matches={data.matches} articles={data.articles} coupons={data.coupons}/>:
+         page==="matches"?<MatchesPanel matches={data.matches} onRefresh={loadAll}/>:
+         page==="coupons"?<CouponsPanel coupons={data.coupons} onRefresh={loadAll}/>:
+         page==="articles"?<ArticlesPanel articles={data.articles} onRefresh={loadAll}/>:null
+        }
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
 </html>
