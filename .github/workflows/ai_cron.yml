@@ -1,0 +1,35 @@
+name: PicsousBet AI Publisher
+
+on:
+  schedule:
+    # Tous les jours à 22:00 UTC (23:00 GMT+1) pour les matchs du lendemain
+    - cron: '0 22 * * *'
+    # 3 fois par jour pour les articles (Ex: 8h, 13h, 18h UTC)
+    - cron: '0 8,13,18 * * *'
+  workflow_dispatch: # Permet de tester manuellement depuis GitHub
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-node: '18'
+
+      - name: Exécuter la publication de Pronostics (uniquement à 22h UTC)
+        if: github.event.schedule == '0 22 * * *' || github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node ai_publisher.js match
+
+      - name: Exécuter la publication d'Articles (aux autres heures du cron)
+        if: github.event.schedule != '0 22 * * *' || github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node ai_publisher.js article
