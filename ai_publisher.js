@@ -3,7 +3,7 @@ const SUPABASE_URL = "https://qtgrtiqtnjvblalzxobz.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-const WHATSAPP_URL = "https://chat.whatsapp.com/J7r4OBafUWOKviJTeoVkWI";
+const WHATSAPP_URL = "https://whatsapp.com/channel/0029Vb7MOnS9xVJawMrfaL1P";
 
 // Fonction pour envoyer des données à Supabase
 async function insertToSupabase(table, data) {
@@ -17,7 +17,13 @@ async function insertToSupabase(table, data) {
     },
     body: JSON.stringify(data)
   });
-  return response.json();
+  const result = await response.json();
+  if (!response.ok) {
+    // Avant : cette erreur était totalement avalée — le script continuait
+    // et affichait quand même "✅ inséré avec succès" plus bas.
+    throw new Error(`Échec insertion Supabase (${table}) — HTTP ${response.status}: ${JSON.stringify(result)}`);
+  }
+  return result;
 }
 
 // Fonction pour appeler l'IA
@@ -66,8 +72,8 @@ async function publishMatch() {
   }`;
 
   const matchData = await generateWithAI(prompt);
-  await insertToSupabase("matches", matchData);
-  console.log(`✅ Match inséré avec succès : ${matchData.home_team} vs ${matchData.away_team}`);
+  const inserted = await insertToSupabase("matches", matchData);
+  console.log(`✅ Match inséré avec succès : ${inserted?.[0]?.home_team ?? matchData.home_team} vs ${inserted?.[0]?.away_team ?? matchData.away_team} (id: ${inserted?.[0]?.id})`);
 }
 
 // --- GENERATION ARTICLES ---
@@ -91,14 +97,20 @@ async function publishArticle() {
   }`;
 
   const articleData = await generateWithAI(prompt);
-  await insertToSupabase("articles", articleData);
-  console.log(`✅ Article inséré avec succès : ${articleData.title}`);
+  const inserted = await insertToSupabase("articles", articleData);
+  console.log(`✅ Article inséré avec succès : ${inserted?.[0]?.title ?? articleData.title} (id: ${inserted?.[0]?.id})`);
 }
 
 // Gestion des arguments de la tâche planifiée
 const action = process.argv[2];
+function fail(err) {
+  console.error("❌ Échec de la publication :", err.message || err);
+  // Avant : l'erreur était juste loguée et le process se terminait en code 0,
+  // donc GitHub Actions affichait un run "réussi" (✓ vert) même quand rien n'était publié.
+  process.exitCode = 1;
+}
 if (action === "match") {
-  publishMatch().catch(console.error);
+  publishMatch().catch(fail);
 } else if (action === "article") {
-  publishArticle().catch(console.error);
+  publishArticle().catch(fail);
 }
