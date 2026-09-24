@@ -18,7 +18,7 @@ jobs:
       - name: Configuration de Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '24'
 
       - name: Exécuter la publication de Pronostics (uniquement à 22h UTC)
         if: github.event.schedule == '0 22 * * *' || github.event_name == 'workflow_dispatch'
